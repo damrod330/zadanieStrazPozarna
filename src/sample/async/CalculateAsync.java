@@ -2,23 +2,21 @@ package sample.async;
 
 import sample.model.City;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 
 /**
  * Created by Damrod on 08.07.2017.
  */
-public class CalculateAsync implements Callable<Boolean> {
+public class CalculateAsync implements Callable<List<String>> {
 
     private List<City> cityList;
     private List<String> citiesToCover;
+    private List<String> result = new ArrayList<>();
 
-    public List<String> getCitiesToCover() {
-        return citiesToCover;
-    }
-
-    public void setCitiesToCover(List<String> citiesToCover) {
-        this.citiesToCover = citiesToCover;
+    public List<String> getResult() {
+        return result;
     }
 
     public CalculateAsync(List<City> cityList, List<String> citiesToCover) {
@@ -27,14 +25,20 @@ public class CalculateAsync implements Callable<Boolean> {
     }
 
     @Override
-    public Boolean call() throws Exception {
-        for (City city : cityList) {
-            if(citiesToCover!=null){
-                citiesToCover.remove(0);
-                Thread.sleep(1421);
-            }
+    public List<String> call() throws Exception {
+        long startingTime = System.currentTimeMillis();
+        System.out.println("Task Started..");
+
+        for (String s1 : citiesToCover) {
+            Thread.sleep(500);
+            result.add("A");
+            System.out.println("working...");
         }
-        return true;
+        System.out.println("Task ended..");
+        System.out.println("Finished after: " + (System.currentTimeMillis() - startingTime));
+        return result;
+
     }
+
 
 }

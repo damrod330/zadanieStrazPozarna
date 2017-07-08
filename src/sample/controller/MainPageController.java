@@ -4,29 +4,38 @@ import com.google.gson.Gson;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
+import javafx.util.Duration;
 import sample.async.CalculateAsync;
 import sample.json.Drogi;
+import sample.json.ParseJson;
 import sample.json.Result;
 import sample.model.City;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.io.*;
-import java.sql.Time;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 public class MainPageController {
 
     private List<City> cityList = null;
     private int timeout;
+
+    @FXML
+    private TextArea resultTextArea;
 
     @FXML
     private Text infoText;
@@ -48,14 +57,25 @@ public class MainPageController {
 
     @FXML
     void buttonLoadJsonClicked(MouseEvent event) {
-        Result result = openJsonFile();
-        if (result != null) {
-            cityList = generateCitiesFromJson(result);
-            timeout = result.getTimeout();
-            buttonProcesData.setDisable(false);
-        } else {
-            cityList = null;
-            timeout = 0;
+        infoText.setText("");
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Open JSON file");
+        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("JSON files (*.json)", "*.json");
+        fileChooser.getExtensionFilters().add(extFilter);
+
+        File targetFile = fileChooser.showOpenDialog(mainContainer.getScene().getWindow());
+        if (targetFile != null) {
+            jsonPathtextField.setText(targetFile.getPath());
+            ParseJson parseJson = new ParseJson();
+            Result result = parseJson.openJsonFile(targetFile, infoText);
+            if (result != null) {
+                cityList = parseJson.generateCitiesFromJson(result);
+                timeout = result.getTimeout();
+                buttonProcesData.setDisable(false);
+            } else {
+                cityList = null;
+                timeout = 0;
+            }
         }
     }
 
@@ -71,36 +91,53 @@ public class MainPageController {
         }
     }
 
-    public void computeData(List<City> cityList, List<String> citiesToCover, int timeout) {
-        long startingTime = 0, endingTime = 0;
-        Boolean result;
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private static final ScheduledExecutorService pool =
+            Executors.newScheduledThreadPool(2,
+                    new ThreadFactoryBuilder()
+                            .setDaemon(true)
+                            .setNameFormat("FutureOps-%d")
+                            .build()
+            );
 
+    public static <T> CompletableFuture<T> timeoutAfter(
+            Duration duration) {
+        final CompletableFuture<T> promise = new CompletableFuture<>();
+        pool.schedule(
+                () -> promise.completeExceptionally(new TimeoutException()),
+                (long) duration.toMillis(), TimeUnit.MILLISECONDS);
+        return promise;
+    }
+
+    public void computeData(List<City> cityList, List<String> citiesToCover, long timeout) {
+
+
+        //ExecutorService executorService = Executors.newSingleThreadExecutor();
         CalculateAsync calculateAsync = new CalculateAsync(cityList, citiesToCover);
-        Future<Boolean> listFuture = executorService.submit(calculateAsync);
 
-        try {
-            System.out.println("Started..");
-            startingTime = System.currentTimeMillis();
-            result = listFuture.get(timeout, TimeUnit.SECONDS);
-            endingTime = System.currentTimeMillis();
-            System.out.println(result);
-        } catch (TimeoutException e) {
-            listFuture.cancel(true);
-            endingTime = System.currentTimeMillis();
+        CompletableFuture<List<String>> futureTimeout = timeoutAfter(Duration.seconds(timeout));
+        CompletableFuture<List<String>> futureCalculations = doAsyncCalculations(calculateAsync);
+
+        futureCalculations.applyToEither(futureTimeout, lambda -> {
+            List<String> result = calculateAsync.getResult();
+            System.out.println("Result: " + result);
+            System.out.println("Task finished before timeout");
+            resultTextArea.setText(result.toString());
+            return futureCalculations;
+        }).exceptionally(lambda -> {
+
+            List<String> result = calculateAsync.getResult();
+            //futureCalculations.complete(result);
+            System.out.println("Result: " + result);
             System.out.println("Timeout called, task terminated");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-            System.out.println("interrupted exception!");
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-            System.out.println("execution exception!");
-        }
-        executorService.shutdownNow();
-        System.out.println("Finished after: "+(endingTime - startingTime));
-        System.out.println("Result: "+calculateAsync.getCitiesToCover());
+            resultTextArea.setText(result.toString());
+            futureCalculations.cancel(true);
 
-        //TODO calculate result
+            return futureCalculations;
+
+        });
+
+
+//TODO calculate result
 //        if (result == null) {
 //            result = new ArrayList<>();
 //        }
@@ -123,107 +160,10 @@ public class MainPageController {
 //        return computeData(cityList, result, citiesToCover);
     }
 
-    private Result openJsonFile() {
-        infoText.setText("");
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Open JSON file");
-        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("JSON files (*.json)", "*.json");
-        fileChooser.getExtensionFilters().add(extFilter);
-
-        File targetFile = fileChooser.showOpenDialog(mainContainer.getScene().getWindow());
-
-        if (targetFile != null) {
-            jsonPathtextField.setText(targetFile.getPath());
-            Gson gson = new Gson();
-            BufferedReader bufferedReader = null;
-            try {
-                bufferedReader = new BufferedReader(new FileReader(targetFile.getPath()));
-                Result result = gson.fromJson(bufferedReader, Result.class);
-
-                System.out.println(result.getMiasta().toString());
-                for (Drogi d : result.getDrogi()) {
-                    System.out.println(d.getMiasta() + " - " + d.getCzasPrzejazdu());
-                }
-
-                infoText.setText("JSON file loaded succesfully");
-                return result;
-
-            } catch (FileNotFoundException e) {
-                infoText.setText("file doesnt't exist");
-                e.printStackTrace();
-
-            } catch (NullPointerException e) {
-                infoText.setText("incorrect JSON file");
-                e.printStackTrace();
-            } finally {
-                if (bufferedReader != null) {
-                    try {
-                        bufferedReader.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private List<City> generateCitiesFromJson(Result result) {
-        List<City> cityList = new ArrayList<>();
-        int range = result.getMaxCzasPrzejazdu();
-
-        for (String mainCity : result.getMiasta()) {
-            List<String> citiesInRangeList = new ArrayList<>();
-            for (String destinyCity : result.getMiasta()) {
-                int cost = calculateDistance(mainCity, mainCity, destinyCity, result, 0);
-                if (range >= cost) {
-                    System.out.print(mainCity + "->" + destinyCity + " time: " + cost + "; ");
-                    citiesInRangeList.add(destinyCity);
-                }
-            }
-            System.out.println();
-            City city = new City(mainCity, citiesInRangeList);
-            cityList.add(city);
-        }
-        return cityList;
-    }
-
-
-    private int calculateDistance(String startingCity, String currentCity, String destinyCity, Result result, int currentDistance) {
-        if (currentDistance <= result.getMaxCzasPrzejazdu()) {
-            //System.out.print(currentCity + ">");
-            List<Drogi> directRoadList = new ArrayList<>();
-            if (currentCity.equals(destinyCity)) {
-                return currentDistance;
-            } else {
-                for (Drogi road : result.getDrogi()) {
-                    if ((road.getMiasta().get(0).equals(destinyCity) && (road.getMiasta().get(1).equals(currentCity)))
-                            || ((road.getMiasta().get(1).equals(destinyCity)) && (road.getMiasta().get(0).equals(currentCity)))) {
-                        //System.out.println(currentCity +"->"+destinyCity+" cost:"+(currentDistance + road.getCzasPrzejazdu()));
-                        if (result.getMaxCzasPrzejazdu() >= currentDistance + road.getCzasPrzejazdu())
-                            return calculateDistance(startingCity, destinyCity, destinyCity, result, currentDistance + road.getCzasPrzejazdu());
-                    }
-                    if ((road.getMiasta().get(0).equals(currentCity) || (road.getMiasta().get(1).equals(currentCity)))) {
-                        directRoadList.add(road);
-                    }
-                }
-            }
-            //System.out.println(currentCity +"->"+destinyCity+" cost: ?");
-            if (directRoadList != null) {
-                for (Drogi road : directRoadList) {
-                    if (currentCity.equals(road.getMiasta().get(0)) && startingCity != (road.getMiasta().get(0))) {
-                        //System.out.println(road.getMiasta().get(0) +"->"+destinyCity+" cost:"+(currentDistance + road.getCzasPrzejazdu()));
-                        return calculateDistance(startingCity, road.getMiasta().get(1), destinyCity, result, currentDistance + road.getCzasPrzejazdu());
-                    }
-                    if (currentCity.equals(road.getMiasta().get(1)) && startingCity != (road.getMiasta().get(1))) {
-                        //System.out.println(road.getMiasta().get(1) +"->"+destinyCity+" cost:"+(currentDistance + road.getCzasPrzejazdu()));
-                        return calculateDistance(startingCity, road.getMiasta().get(0), destinyCity, result, currentDistance + road.getCzasPrzejazdu());
-                    }
-                }
-            }
-
-        }
-        return result.getMaxCzasPrzejazdu() + 1;
+    private CompletableFuture<List<String>> doAsyncCalculations(CalculateAsync calculateAsync) {
+        final CompletableFuture<List<String>> promise = new CompletableFuture<>();
+        pool.schedule(calculateAsync,0, TimeUnit.MICROSECONDS);
+        return promise;
     }
 
 
