@@ -18,6 +18,6 @@
 "czas_przejazdu" : 1
 }
 ],
-"timeout" : 5,
+"timeout" : 3,
 "max_czas_przejazdu" : 10
 }

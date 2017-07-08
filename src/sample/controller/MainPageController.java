@@ -9,16 +9,18 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
+import sample.async.CalculateAsync;
 import sample.json.Drogi;
 import sample.json.Result;
 import sample.model.City;
 
 
 import java.io.*;
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class MainPageController {
@@ -59,16 +61,45 @@ public class MainPageController {
 
     @FXML
     void buttonProcessDataClicked(MouseEvent event) {
+        buttonProcesData.setDisable(true);
         if (cityList != null) {
             List<String> citiesToCover = new ArrayList<>();
             for (City c1 : cityList) {
                 citiesToCover.add(c1.getName());
             }
-            computeData(cityList, null, citiesToCover, timeout);
+            computeData(cityList, citiesToCover, timeout);
         }
     }
 
-    public List<String> computeData(List<City> cityList, List<String> result, List<String> citiesToCover, int timeout) {
+    public void computeData(List<City> cityList, List<String> citiesToCover, int timeout) {
+        long startingTime = 0, endingTime = 0;
+        Boolean result;
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+        CalculateAsync calculateAsync = new CalculateAsync(cityList, citiesToCover);
+        Future<Boolean> listFuture = executorService.submit(calculateAsync);
+
+        try {
+            System.out.println("Started..");
+            startingTime = System.currentTimeMillis();
+            result = listFuture.get(timeout, TimeUnit.SECONDS);
+            endingTime = System.currentTimeMillis();
+            System.out.println(result);
+        } catch (TimeoutException e) {
+            listFuture.cancel(true);
+            endingTime = System.currentTimeMillis();
+            System.out.println("Timeout called, task terminated");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            System.out.println("interrupted exception!");
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+            System.out.println("execution exception!");
+        }
+        executorService.shutdownNow();
+        System.out.println("Finished after: "+(endingTime - startingTime));
+        System.out.println("Result: "+calculateAsync.getCitiesToCover());
+
         //TODO calculate result
 //        if (result == null) {
 //            result = new ArrayList<>();
@@ -90,7 +121,6 @@ public class MainPageController {
 //        }
 //
 //        return computeData(cityList, result, citiesToCover);
-        return null;
     }
 
     private Result openJsonFile() {
@@ -147,7 +177,7 @@ public class MainPageController {
             for (String destinyCity : result.getMiasta()) {
                 int cost = calculateDistance(mainCity, mainCity, destinyCity, result, 0);
                 if (range >= cost) {
-                    System.out.print(mainCity+"->"+destinyCity+" time: " + cost + "; ");
+                    System.out.print(mainCity + "->" + destinyCity + " time: " + cost + "; ");
                     citiesInRangeList.add(destinyCity);
                 }
             }
