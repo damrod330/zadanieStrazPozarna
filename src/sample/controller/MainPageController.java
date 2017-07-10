@@ -112,57 +112,27 @@ public class MainPageController {
 
 
         //ExecutorService executorService = Executors.newSingleThreadExecutor();
-        CalculateAsync calculateAsync = new CalculateAsync(cityList, citiesToCover);
+        CalculateAsync calculateAsync = new CalculateAsync();
+        calculateAsync.setCityList(cityList);
+        calculateAsync.setCitiesToCover(citiesToCover);
 
         CompletableFuture<List<String>> futureTimeout = timeoutAfter(Duration.seconds(timeout));
         CompletableFuture<List<String>> futureCalculations = doAsyncCalculations(calculateAsync);
 
-        futureCalculations.applyToEither(futureTimeout, lambda -> {
-            List<String> result = calculateAsync.getResult();
-            System.out.println("Result: " + result);
-            System.out.println("Task finished before timeout");
-            resultTextArea.setText(result.toString());
-            return futureCalculations;
+        futureCalculations.applyToEither(futureTimeout, f->{return futureCalculations;
         }).exceptionally(lambda -> {
-
             List<String> result = calculateAsync.getResult();
-            //futureCalculations.complete(result);
             System.out.println("Result: " + result);
             System.out.println("Timeout called, task terminated");
             resultTextArea.setText(result.toString());
             futureCalculations.cancel(true);
-
             return futureCalculations;
-
         });
-
-
-//TODO calculate result
-//        if (result == null) {
-//            result = new ArrayList<>();
-//        }
-//        for (int i = 0; i <= cityList.size(); i++) {
-//            result.add(cityList.get(i).getName());
-//
-//            List<String> sumOfElements = new ArrayList<>();
-//            for (String element : result) {
-//                sumOfElements.
-//            }
-//                City city = (City) cityList.stream().filter(item -> item.getName().equals(element));
-//                if(city.getListOfCitiesInRange().containsAll(citiesToCover)){
-//                    return result;
-//                }
-//                else{
-//                    //try other element
-//                }
-//        }
-//
-//        return computeData(cityList, result, citiesToCover);
     }
 
     private CompletableFuture<List<String>> doAsyncCalculations(CalculateAsync calculateAsync) {
         final CompletableFuture<List<String>> promise = new CompletableFuture<>();
-        pool.schedule(calculateAsync,0, TimeUnit.MICROSECONDS);
+        pool.schedule(calculateAsync, 0, TimeUnit.MICROSECONDS);
         return promise;
     }
 

@@ -14,74 +14,88 @@ import java.util.concurrent.Callable;
 public class CalculateAsync implements Callable<List<String>> {
 
     private List<City> cityList;
-    private List<String> citiesToCover;
+    private List<String> citiesToCover = new ArrayList<>();
     private List<String> result = new ArrayList<>();
+
+    public void setCityList(List<City> cityList) {
+        this.cityList = cityList;
+    }
+
+    public void setCitiesToCover(List<String> citiesToCover) {
+        this.citiesToCover = citiesToCover;
+    }
 
     public List<String> getResult() {
         return result;
     }
 
-    public CalculateAsync(List<City> cityList, List<String> citiesToCover) {
-        this.citiesToCover = citiesToCover;
-        this.cityList = cityList;
-    }
 
     @Override
     public List<String> call() throws Exception {
         long startingTime = System.currentTimeMillis();
         System.out.println("Task Started..");
-
-       calculateFireDepartments(citiesToCover,cityList,null);
+        calculateFireDepartments(null);
         System.out.println("Task ended..");
         System.out.println("Finished after: " + (System.currentTimeMillis() - startingTime));
         return result;
 
     }
 
-    private List<String> calculateFireDepartments(List<String> citiesToCover, List<City> cityList, List<String> currentResult) {
-        if(result==null){
-            result = citiesToCover;
-            currentResult = result;
-        }
-        //usun losowy element
-        currentResult.remove(new Random().nextInt(currentResult.size()));
-        //sprawdz, czy po usunieciu elementu nic sie nie zawali
-        if(resultIsPossible(currentResult, cityList) ){
-            //jeśli nie to sprawdz, czy nowy rezultat jest mniejszy niz poprzedni
-            if (currentResult.size() < result.size()){
-                result = currentResult;
-                return
-            }
-        }
-
-
-
-//        for (City city : cityList) {
-//            List<String> currentResoult = new ArrayList<>();
-//            if (equalLists(city.getListOfCitiesInRange(), citiesToCover)) {
-//                currentResoult.add(city.getName());
-//                if (result.size() > currentResoult.size()) {
-//                    result = currentResoult;
-//                    return result;
-//                } else {
-//
-//                }
-//            } else {
-//                cityList.remove(city);
-//                currentResoult.add(city.getName());
-//                for (String s1 : city.getListOfCitiesInRange()) {
-//                    citiesToCover.remove(s1);
-//                }
-//                result.add(city.getName());
-//                return coveredCities(citiesToCover, cityList, result);
-//            }
- //       }
-
-        return result;
+    private boolean calculationsAreDone() {
+        return true;
     }
 
-    private boolean resultIsPossible(List<String> currentResult, List<City> cityList) {
-        return true;
+
+    private List<String> calculateFireDepartments(List<String> currentResult) {
+        if (currentResult == null) {
+            result.removeAll(result);
+            result.addAll(citiesToCover);
+            currentResult = new ArrayList<>();
+            currentResult.addAll(result);
+        }
+        List<String> newCityList = new ArrayList<>();
+        newCityList.addAll(currentResult);
+        for (String city : newCityList) {
+            currentResult.remove(city);
+            if (resultIsPossible(currentResult)) {
+                if (currentResult.size() < result.size()) {
+                    result.removeAll(result);
+                    result.addAll(currentResult);
+                }
+                calculateFireDepartments(currentResult);
+            }
+            currentResult.add(city);
+            Collections.sort(currentResult);
+        }
+        return currentResult;
+    }
+
+    private boolean resultIsPossible(List<String> currentResult) {
+        if (currentResult != null) {
+            List<String> citiesInRangeList = new ArrayList<>();
+            List<City> currentCityList = new ArrayList<>();
+            for (String s1 : currentResult) {
+                for (City c1 : this.cityList) {
+                    if (s1.equals(c1.getName())) {
+                        currentCityList.add(c1);
+                    }
+                }
+            }
+            for (City city : currentCityList) {
+                for (String cityName : city.getListOfCitiesInRange()) {
+                    if (!citiesInRangeList.contains(cityName)) {
+                        citiesInRangeList.add(cityName);
+                    }
+                }
+            }
+            if (citiesInRangeList.containsAll(citiesToCover)) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
     }
 
     public boolean equalLists(List<String> one, List<String> two) {
