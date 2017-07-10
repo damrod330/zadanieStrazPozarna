@@ -1,9 +1,11 @@
-package sample.model;
+package sample.json.model;
 
 import java.util.List;
 
+
 /**
- * Created by Damrod on 04.07.2017.
+ @Author Konrad Baczyński
+Class City is a model class.
  */
 public class City {
 

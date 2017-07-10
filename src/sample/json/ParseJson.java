@@ -2,19 +2,54 @@ package sample.json;
 
 import com.google.gson.Gson;
 import javafx.scene.text.Text;
-import javafx.stage.FileChooser;
-import sample.model.City;
+import sample.json.model.City;
+import sample.json.model.Drogi;
+import sample.json.model.Result;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
- * Created by Damrod on 08.07.2017.
+ @Author Konrad Baczyński
+ This class is used to read and save json files and convert string for appropriate json string.
  */
 public class ParseJson {
 
+    /**
+     @param  result - it's a list city's names that are most optimal for placing FireDepartment in them.
+     @return jsonString - it's a @param result converted to acceptable json format.
+     */
+    public String convertCitiesResultToJsonString(List<String> result){
+        String resultString = "";
+        for (String s1: result) {
+            resultString += "\""+s1+"\",";
+        }
+        resultString = resultString.substring(0, resultString.length()-1);
+        String jsonString = "{\"Result\": ["+resultString+"]}";
+        //"miasta" : ["A", "B", "C", "D", "E","F", "G", "H", "I", "J"],
+        return jsonString;
+    }
+
+    /**
+     @param  jsonString - a ready to save json String
+     @param path - path to a folder where file will be saved
+     */
+    public void saveJsonFile(String jsonString, String path) throws IOException {
+        File file = new File(path+"/out.json");
+        file.createNewFile();
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
+        OutputStreamWriter myOutWriter =new OutputStreamWriter(fileOutputStream);
+        myOutWriter.append(jsonString);
+        myOutWriter.close();
+        fileOutputStream.close();
+    }
+
+    /**
+     @param  targetFile - file selected to read json from.
+     @param infoText - Text where information about success/failure of opening the file will be posted.
+     @return result - Returns Result object, it is a json converted to model.
+     */
     public Result openJsonFile(File targetFile, Text infoText) {
 
         if (targetFile != null) {
@@ -45,6 +80,7 @@ public class ParseJson {
                         bufferedReader.close();
                     } catch (IOException e) {
                         e.printStackTrace();
+                        infoText.setText("incorrect JSON file");
                     }
                 }
             }
@@ -52,6 +88,11 @@ public class ParseJson {
         return null;
     }
 
+    /**
+     * This function extracts cityList and calculates cities in range from result.
+     @param  result - model previoulsy read from json.
+     @return cityList - a list of cities with calculated cities in range.
+     */
     public List<City> generateCitiesFromJson(Result result) {
         List<City> cityList = new ArrayList<>();
         int range = result.getMaxCzasPrzejazdu();
@@ -75,7 +116,6 @@ public class ParseJson {
 
     private int calculateDistance(String startingCity, String currentCity, String destinyCity, Result result, int currentDistance) {
         if (currentDistance <= result.getMaxCzasPrzejazdu()) {
-            //System.out.print(currentCity + ">");
             List<Drogi> directRoadList = new ArrayList<>();
             if (currentCity.equals(destinyCity)) {
                 return currentDistance;
@@ -83,7 +123,6 @@ public class ParseJson {
                 for (Drogi road : result.getDrogi()) {
                     if ((road.getMiasta().get(0).equals(destinyCity) && (road.getMiasta().get(1).equals(currentCity)))
                             || ((road.getMiasta().get(1).equals(destinyCity)) && (road.getMiasta().get(0).equals(currentCity)))) {
-                        //System.out.println(currentCity +"->"+destinyCity+" cost:"+(currentDistance + road.getCzasPrzejazdu()));
                         if (result.getMaxCzasPrzejazdu() >= currentDistance + road.getCzasPrzejazdu())
                             return calculateDistance(startingCity, destinyCity, destinyCity, result, currentDistance + road.getCzasPrzejazdu());
                     }
@@ -92,15 +131,12 @@ public class ParseJson {
                     }
                 }
             }
-            //System.out.println(currentCity +"->"+destinyCity+" cost: ?");
             if (directRoadList != null) {
                 for (Drogi road : directRoadList) {
                     if (currentCity.equals(road.getMiasta().get(0)) && startingCity != (road.getMiasta().get(0))) {
-                        //System.out.println(road.getMiasta().get(0) +"->"+destinyCity+" cost:"+(currentDistance + road.getCzasPrzejazdu()));
                         return calculateDistance(startingCity, road.getMiasta().get(1), destinyCity, result, currentDistance + road.getCzasPrzejazdu());
                     }
                     if (currentCity.equals(road.getMiasta().get(1)) && startingCity != (road.getMiasta().get(1))) {
-                        //System.out.println(road.getMiasta().get(1) +"->"+destinyCity+" cost:"+(currentDistance + road.getCzasPrzejazdu()));
                         return calculateDistance(startingCity, road.getMiasta().get(0), destinyCity, result, currentDistance + road.getCzasPrzejazdu());
                     }
                 }

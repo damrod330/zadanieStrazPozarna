@@ -12,7 +12,7 @@ public class Main extends Application {
     public void start(Stage primaryStage) throws Exception{
         Parent root = FXMLLoader.load(getClass().getResource("../resources/scene/mainPage.fxml"));
         primaryStage.setTitle("Straż pożarna zadanie");
-        primaryStage.setScene(new Scene(root, 500, 350));
+        primaryStage.setScene(new Scene(root, 500, 300));
         primaryStage.setResizable(false);
         primaryStage.show();
     }

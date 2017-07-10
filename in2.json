@@ -1,0 +1,48 @@
+{
+"miasta" : ["A", "B", "C", "D", "E","F", "G", "H", "I", "J"],
+"drogi" : [
+{
+"miasta" : ["D", "B"],
+"czas_przejazdu" : 2
+},
+{
+"miasta" : ["A", "C"],
+"czas_przejazdu" : 3
+},
+{
+"miasta" : ["H", "D"],
+"czas_przejazdu" : 4
+},
+{
+"miasta" : ["A", "E"],
+"czas_przejazdu" : 1
+},
+{
+"miasta" : ["E", "F"],
+"czas_przejazdu" : 3
+},
+{
+"miasta" : ["E", "G"],
+"czas_przejazdu" : 4
+},
+{
+"miasta" : ["H", "I"],
+"czas_przejazdu" : 2
+},
+{
+"miasta" : ["I", "J"],
+"czas_przejazdu" : 3
+},
+{
+"miasta" : ["A", "J"],
+"czas_przejazdu" : 4
+},
+{
+"miasta" : ["H", "B"],
+"czas_przejazdu" : 3
+}
+
+],
+"timeout" : 1,
+"max_czas_przejazdu" : 5
+}

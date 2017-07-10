@@ -1,15 +1,16 @@
 package sample.async;
 
-import sample.model.City;
+import sample.json.model.City;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.Callable;
 
 /**
- * Created by Damrod on 08.07.2017.
+ * @Author Konrad Baczyński
+ * This class calculates most optimal result for placing fireDepartments based on given data.
+ * List<City>cityList, List<String> citiesToCover are mandatory for calculations.
  */
 public class CalculateAsync implements Callable<List<String>> {
 
@@ -28,23 +29,21 @@ public class CalculateAsync implements Callable<List<String>> {
     public List<String> getResult() {
         return result;
     }
-
-
+    /**
+     This function is called when async task is created, calculations are done here.
+     */
     @Override
     public List<String> call() throws Exception {
         long startingTime = System.currentTimeMillis();
         System.out.println("Task Started..");
         calculateFireDepartments(null);
-        System.out.println("Task ended..");
-        System.out.println("Finished after: " + (System.currentTimeMillis() - startingTime));
+        System.out.println("Task Finished after: " + (System.currentTimeMillis() - startingTime) + " millis");
         return result;
-
     }
 
     private boolean calculationsAreDone() {
         return true;
     }
-
 
     private List<String> calculateFireDepartments(List<String> currentResult) {
         if (currentResult == null) {
@@ -98,7 +97,7 @@ public class CalculateAsync implements Callable<List<String>> {
         }
     }
 
-    public boolean equalLists(List<String> one, List<String> two) {
+    private boolean equalLists(List<String> one, List<String> two) {
         if (one == null && two == null) {
             return true;
         }
